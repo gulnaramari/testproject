@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from decimal import Decimal
 
 
 class Equipment(models.Model):
@@ -14,6 +15,8 @@ class Equipment(models.Model):
     )
     # Если дату вводит пользователь — обычное поле (без auto_now_add)
     market_release_date = models.DateField(
+        null=True,
+        blank=True,
         verbose_name="Дата выхода на рынок",
         help_text="Укажите дату выхода на рынок"
     )
@@ -29,24 +32,31 @@ class Equipment(models.Model):
 
 class Contact(models.Model):
     email = models.EmailField(
-        unique=True, verbose_name="Email",
+        unique=True,
+        verbose_name="Email",
         help_text="Введите адрес электронной почты"
     )
     country = models.CharField(
-        max_length=140, verbose_name="Страна",
-        help_text="Введите страну", db_index=True
+        max_length=140,
+        verbose_name="Страна",
+        help_text="Введите страну",
+        db_index=True
     )
     city = models.CharField(
-        max_length=140, verbose_name="Город",
-        help_text="Введите город", db_index=True
+        max_length=140,
+        verbose_name="Город",
+        help_text="Введите город",
+        db_index=True
     )
     street = models.CharField(
-        max_length=140, verbose_name="Улица",
+        max_length=140,
+        verbose_name="Улица",
         help_text="Введите улицу"
     )
 
     house_number = models.CharField(
-        max_length=20, verbose_name="Номер дома",
+        max_length=20,
+        verbose_name="Номер дома",
         help_text="Введите номер дома"
     )
 
@@ -61,26 +71,27 @@ class Contact(models.Model):
 
 class SaleNet(models.Model):
     net_name = models.CharField(max_length=200, verbose_name="Название")
-    net_contacts = models.OneToOneField(
+    # контакты
+    net_contacts = models.ForeignKey(
         Contact,
-        on_delete=models.CASCADE,
-        verbose_name="Контакты",
-        help_text="Укажите контакт",
-        related_name="sale_net"
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="salenets"
     )
     equipments = models.ManyToManyField(
-        Equipment, verbose_name="Оборудование"
+        Equipment,
+        blank=True,
+        related_name="salenets",
+        verbose_name="Оборудование"
     )
+    # самоссылка: поставщик/родитель в иерархии
     supplier = models.ForeignKey(
-        "self",
-        null=True, blank=True,
-        on_delete=models.CASCADE,
-        related_name="children",
-        verbose_name="Поставщик",
-        help_text="Укажите поставщика"
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="clients"
     )
+
     arrears = models.DecimalField(
-        max_digits=28, decimal_places=3, default=0,
+        max_digits=28, decimal_places=2, default=Decimal("0.00"),
         validators=[MinValueValidator(0)],
         verbose_name="Задолженность перед поставщиком",
         help_text="Укажите задолженность перед поставщиком (неотрицательное число)"
@@ -91,9 +102,10 @@ class SaleNet(models.Model):
     )
 
     class Meta:
-        verbose_name = "Сеть продаж"
-        verbose_name_plural = "Сети продаж"
-        ordering = ["net_name"]
+        indexes = [
+            models.Index(fields=["net_name"]),
+            ]
+
 
     def __str__(self):
         return self.net_name
@@ -109,18 +121,17 @@ class SaleNet(models.Model):
 
     def clean(self):
         super().clean()
-        # Самому себе поставщиком быть нельзя
-        if self.supplier and self.supplier == self:
-            raise ValidationError({"supplier": "Поставщик не может быть самому себе поставщиком."})
 
-        # Детекция цикла в иерархии поставщиков
+        if self.supplier and self.supplier == self:
+            raise ValidationError({"supplier": "Поставщик не может быть самим собой"})
+
         seen = set()
         supplier = self.supplier
         while supplier:
             if supplier == self:
                 raise ValidationError({"supplier": "Обнаружен цикл в цепочке поставщиков."})
-            # защитимся от None и повторов
             if supplier.pk in seen:
-                break
+                # Повторная встреча любого узла = цикл (на любом уровне)
+                raise ValidationError({"supplier": "Обнаружен цикл в цепочке поставщиков."})
             seen.add(supplier.pk)
             supplier = supplier.supplier
