@@ -53,64 +53,67 @@ git clone https://github.com/gulnaramari/testproject.git
 Запустите проект командой: pythom manage.py runserver
 Для остановки используйте комбинацию клавиш CTRL + C
 
-## 5. Развертывание на сервере
+## 5. Развертывание на сервере с помощью docker-compose (локально)
 
 Требования:
 Для успешного развертывания вам понадобятся:
 Удаленный сервер с установленным Docker.
-Учетная запись Docker Hub. Доступ к репозиторию на GitHub.
-Настройка удаленного сервера
-Обновление системы
-
-sudo apt update sudo apt upgrade 
-Установка docker and docker-compose
-sudo apt update && sudo apt install -y docker.io docker-compose sudo systemctl enable docker sudo usermod -aG docker $USER && newgrp docker
-Настройка брандмауэра
-5.1. Активировать брандмауэр - check the firewall status - sudo ufw status Если брандмауэр отключен, включите его - sudo ufw enable
-5.2. Откройте необходимые порты - http port: - sudo ufw allow 80/tcp
-
-- https port:
-  - sudo ufw allow 443/tcp
-
-- ssh port:
-  - sudo ufw allow 22/tcp
+Учетная запись Docker Hub. 
 Клонирование репозитория: \
 git clone https://github.com/gulnaramari/testproject.git
-внесите необходимые данные переменных окружения
-  
-Подключение к базе
+Переименуйте файл '.env.smple' в '.env' 
+и внесите необходимые данные переменных окружения.
 
-POSTGRES_DB=testproject
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=SkyPro2025
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
 Разрешенные хосты=localhost,127.0.0.1,example.com
-Запуск в production: git clone https://github.com/gulnaramari/testproject.git /var/www/config
-cd /var/www/config
-
-Важно:
-
-Nginx будет доступен на порту 80 Автоматическая статическая и миграционная сборка Celery workers/beat запустятся автоматически Настройка CI/CD
-
-Разветвите или клонируйте репозиторий Разветвите этот репозиторий на свою собственную учетную запись GitHub, если вы планируете вносить свой вклад или запускать рабочие процессы, для которых требуются секретные ключи. В качестве альтернативы, клонируйте репозиторий непосредственно на свой локальный компьютер: git clone https://github.com/username/repository-name.git cd repository-name
-
-Установка данных в secrets: а) Перейдите в свой разветвленный репозиторий на GitHub. б) Перейдите в Settings > Secrets and variables > Actions. в) Добавьте необходимые переменные в secrets, такие как: DOTENV - содержимое файла .env (заполните в соответствии с образцом .env.sample) DOCKER_HUB_USERNAME - логин Docker Hub DOCKER_ACCESS_TOKEN - токен Docker Hub SSH_KEY - закрытый SSH-ключ сервера SSH_USER - пользователь сервера SERVER_IP - IP-адрес виртуальной машины
-
-Workflow: Автоматически запускается по запросу push/pull
-Шаги: ✅ lint→ ✅ build → 🚀 deploy
-Запустить локально (для разработки)
-
-Убедитесь, что вы заполнили данные в файле .env Сборка и запуск: docker-compose -f docker-compose.dev.yml up --build Создать суперпользователя docker-compose -f docker-compose.dev.yml exec web python manage.py csu
-Порты: Django: http://localhost:8000 PostgreSQL: 5432 Redis: 6379
+Запустите проект командой: docker-compose up -d --build
 
 Аварийные Команды (Сервер)
 
 Просмотр логов
-docker-compose -f docker-compose.prod.yml logs -f
+docker-compose logs -f
 
-Пересборка контейнеров
-docker-compose -f docker-compose.prod.yml up -d --build --force-recreate
+Остановка и удаление контейнеров
+docker-compose down
 
-Остановка
-docker-compose -f docker-compose.prod.yml down -v
+## 6. Тестирование 
+Функционал покрыт тестами с использованием unittest. Для запуска тестов используйте команду python manage.py test 
+Для получения отчёта используйте coverage run --source='.' manage.py test
+и coverage report
+В момент написания этого файла процент покрытия тестами составляет 88%
+Name                                                                  Stmts   Miss  Cover
+-----------------------------------------------------------------------------------------
+config\__init__.py                                                        0      0   100%
+config\asgi.py                                                            4      4     0%
+config\settings.py                                                       33      1    97%
+config\urls.py                                                            7      0   100%
+config\wsgi.py                                                            4      4     0%
+electronics_sales\__init__.py                                             0      0   100%
+electronics_sales\admin.py                                               51     12    76%
+electronics_sales\apps.py                                                 4      0   100%
+electronics_sales\migrations\0001_initial.py                              7      0   100%
+electronics_sales\migrations\0002_alter_salenet_options_and_more.py       7      0   100%
+electronics_sales\migrations\__init__.py                                  0      0   100%
+electronics_sales\models.py                                              58      6    90%
+electronics_sales\permissions.py                                          4      4     0%
+electronics_sales\serializers.py                                         26      0   100%
+electronics_sales\tests.py                                               72      2    97%
+electronics_sales\urls.py                                                 4      0   100%
+electronics_sales\views.py                                               23      0   100%
+manage.py                                                                11      2    82%
+users\__init__.py                                                         0      0   100%
+users\admin.py                                                            5      0   100%
+users\apps.py                                                             4      0   100%
+users\management\__init__.py                                              0      0   100%
+users\management\commands\__init__.py                                     0      0   100%
+users\management\commands\csu.py                                         12     12     0%
+users\migrations\0001_initial.py                                          8      0   100%
+users\migrations\__init__.py                                              0      0   100%
+users\models.py                                                           3      0   100%
+users\serializers.py                                                      6      0   100%
+users\tests.py                                                           33      0   100%
+users\urls.py                                                             5      0   100%
+users\views.py                                                           10      0   100%
+-----------------------------------------------------------------------------------------
+TOTAL                                                                   401     47    88%
+
+
